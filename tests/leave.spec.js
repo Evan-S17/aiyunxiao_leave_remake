@@ -164,7 +164,7 @@ test('单文件 HTML 离线运行，无外部资源，编辑刷新持久化', as
   await page.goto('https://standalone.test/');
   await expect(page.locator('.leave-card')).toHaveCount(6);
   await expect(page.locator('.navigation h1')).toHaveText('请假记录');
-  await expect(page.locator('.leave-card').first()).toContainText('胡雁灵');
+  await expect(page.locator('.leave-card').first()).toContainText('学生');
   await manage(page);
   await page.getByRole('button', { name: '编辑', exact: true }).first().click();
   await page.getByLabel('学生姓名（编辑）').fill('离线编辑');

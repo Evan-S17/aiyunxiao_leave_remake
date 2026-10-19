@@ -115,7 +115,7 @@ function options(values, selected) { return values.map(([value, text]) => `<opti
 function openEditor(id) {
   const existing = records.find(record => record.id === id);
   const today = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  const record = existing || { name: '', status: 'pending', type: 'personal', startDate: today, endDate: today, startPeriod: '1', endPeriod: '1', reason: '' };
+  const record = existing || { name: '学生', status: 'pending', type: 'personal', startDate: today, endDate: today, startPeriod: '1', endPeriod: '1', reason: '' };
   const periods = [['', '不显示节次'], ...Array.from({ length: 20 }, (_, i) => [i + 1, `第${i + 1}节`])];
   openPanel(existing ? '编辑请假记录' : '新增请假记录', `<form id="editor" class="editor-form">
     <label>学生姓名<input name="name" aria-label="学生姓名（编辑）" value="${escape(record.name)}" maxlength="30" required autocomplete="off"/></label>
