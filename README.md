@@ -9,6 +9,12 @@ A project aiming to provide "freedom" in campus.
 
 ### freecampus 手机在线访问（推荐 iOS）
 
+已有 GitHub Pages 地址继续使用：
+
+https://evan-s17.github.io/aiyunxiao_leave_remake/
+
+`.github/workflows/pages.yml` 在推送 `main` 后构建、发布此地址。无需为更新已有网址而更换托管平台；新版需要该工作流部署成功后才会在原网址生效。
+
 站点名为 **freecampus**。可使用 Netlify 免费静态托管，GitHub 仓库保持私有；无需购买域名。
 
 下载 **[freecampus-site.zip](./freecampus-site.zip)**，登录 [Netlify Drop](https://app.netlify.com/drop) 上传。若上传界面要求文件夹，先解压并上传含 `index.html` 的文件夹。上传成功后，在项目设置的 **Project name / Site name** 中尝试设为 `freecampus`。
@@ -83,4 +89,4 @@ npm run dev
 
 手机上的 `localhost` 指手机自身，不能用来访问电脑上的服务。云端工作区的 `localhost` 也不是自己电脑的地址。
 
-本仓库提供 Netlify 部署配置、freecampus 部署包、单文件下载和本地运行方式。
+本仓库保留已有 GitHub Pages 自动部署，同时提供可选的 Netlify 部署配置、freecampus 部署包、单文件下载和本地运行方式。
