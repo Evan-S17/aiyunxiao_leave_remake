@@ -5,6 +5,8 @@ A project aiming to provide "freedom" in campus.
 
 按提供的截图实现请假记录列表。无后端、无登录、无外部接口，所有修改只保存在当前浏览器的 `localStorage`，不改变爱云校系统中的任何记录。
 
+界面随手机屏幕宽度自适应，支持横竖屏、文字放大和设备安全区；不模拟系统时间、信号、Wi-Fi、电量或底部系统栏。
+
 ### 直接使用（无需安装）
 
 下载 **[leave-offline.zip](./leave-offline.zip)**，解压后用浏览器打开里面的 **leave.html**。不需要 Node.js、命令行或服务器，断网也能使用。所有样式和脚本都已包含在这一个文件里。

@@ -165,7 +165,6 @@ function resetView() { search = ''; filters = { status: '', type: '' }; $('#sear
 
 $('.more').onclick = openMenu;
 $('.back').onclick = resetView;
-$('.close-page').onclick = resetView;
 $('#open-filter').onclick = openFilter;
 $('#search-form').onsubmit = event => { event.preventDefault(); search = $('#search-name').value.trim(); $('#search-name').blur(); render(); };
 $('.clear-search').onclick = () => { $('#search-name').value = ''; search = ''; render(); };
@@ -179,8 +178,5 @@ $('#records').addEventListener('click', event => {
   $('#confirm-revoke').onclick = () => { if (persist(records.map(record => record.id === id ? { ...record, status: 'cancelled' } : record))) { panel.close(); notify('请假已撤销'); } };
 });
 
-function updateClock() { $('.clock').textContent = new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date()); }
-updateClock();
-setInterval(updateClock, 30000);
 render();
 if (storageWarning) notify(storageWarning);

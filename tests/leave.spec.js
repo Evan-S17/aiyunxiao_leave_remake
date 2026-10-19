@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
+import { initialRecords, STORAGE_KEY } from '../src/data.js';
 
 async function manage(page) {
   await page.getByRole('button', { name: '更多操作' }).click();
@@ -9,17 +10,75 @@ async function manage(page) {
 
 test.beforeEach(async ({ page }) => { await page.goto('/leave/vacationList'); });
 
-test('手机端列表与周期节数，320–430px 无横向溢出', async ({ page }, testInfo) => {
+test('自适应列表，无模拟状态栏，280–920px 及横屏无横向溢出', async ({ page }, testInfo) => {
   await expect(page.locator('.leave-card')).toHaveCount(6);
   await expect(page.locator('.leave-card').first()).toContainText('待审核');
   await expect(page.locator('.recurrence-row').first()).toContainText('共110节课');
-  for (const width of [320, 375, 390, 430]) {
-    await page.setViewportSize({ width, height: 844 });
+  await expect(page.locator('.status-bar, .clock, .wifi, .signal, .battery, .bottom-safe-area')).toHaveCount(0);
+  for (const [width, height] of [[280, 653], [320, 568], [360, 800], [375, 667], [390, 844], [414, 896], [430, 932], [540, 720], [768, 1024], [844, 390], [920, 412]]) {
+    await page.setViewportSize({ width, height });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
     expect(await page.locator('.student-value').first().evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
+    expect(await page.locator('.phone').evaluate(el => Math.round(el.getBoundingClientRect().width))).toBe(Math.min(width, 768));
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: testInfo.outputPath('mobile-list.png'), fullPage: true });
+});
+
+test('长姓名、长事由、时间节次、字体放大和安全区不遮挡，窄屏表单可操作', async ({ page }, testInfo) => {
+  const records = structuredClone(initialRecords);
+  Object.assign(records[0], {
+    name: '学生'.repeat(15),
+    reason: '较长的请假事由，需要完整显示并自然换行。'.repeat(15) + 'https://example.com/' + 'a'.repeat(100),
+    startDate: '2026-12-31', endDate: '2026-12-31',
+    startTime: '08:30', endTime: '20:30', startPeriod: '19', endPeriod: '20',
+  });
+  await page.evaluate(({ records, key }) => localStorage.setItem(key, JSON.stringify(records)), { records, key: STORAGE_KEY });
+  await page.reload();
+  for (const fontSize of [16, 24, 32]) {
+    await page.evaluate(size => { document.documentElement.style.fontSize = `${size}px`; }, fontSize);
+    for (const [width, height] of [[280, 653], [320, 568], [375, 667], [430, 932], [844, 390]]) {
+      await page.setViewportSize({ width, height });
+      const overflow = await page.locator('.leave-card').first().evaluate(card => [...card.querySelectorAll('.detail-row,dt,dd,.student-name,.tags,.time-value>span,.revoke-button')].filter(el => el.scrollWidth > el.clientWidth + 1).map(el => el.className || el.tagName));
+      expect(overflow, `${width}px / ${fontSize}px text`).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+      const navigation = await page.locator('.navigation').evaluate(nav => {
+        const title = nav.querySelector('h1').getBoundingClientRect();
+        const left = nav.querySelector('.navigation-left').getBoundingClientRect();
+        const more = nav.querySelector('.more').getBoundingClientRect();
+        const visibleButtons = [...nav.querySelectorAll('.navigation-left button')].filter(el => el.getBoundingClientRect().width);
+        const lastButton = visibleButtons.at(-1).getBoundingClientRect();
+        return { noOverlap: lastButton.right <= title.left + 1 && title.right <= more.left + 1, left: left.left };
+      });
+      expect(navigation.noOverlap, `navigation ${width}px / ${fontSize}px text`).toBeTruthy();
+      expect(await page.getByRole('searchbox').evaluate(el => el.clientWidth)).toBeGreaterThanOrEqual(fontSize * 4);
+    }
+  }
+  await page.evaluate(() => {
+    document.documentElement.style.fontSize = '16px';
+    document.documentElement.style.setProperty('--safe-left', '44px');
+    document.documentElement.style.setProperty('--safe-right', '44px');
+    document.documentElement.style.setProperty('--safe-top', '24px');
+    document.documentElement.style.setProperty('--safe-bottom', '34px');
+  });
+  await expect(page.locator('.navigation')).toHaveCSS('padding-left', '44px');
+  await expect(page.locator('.app-header')).toHaveCSS('padding-top', '24px');
+  expect(await page.locator('.leave-card').first().evaluate(el => el.getBoundingClientRect().left)).toBeGreaterThanOrEqual(44);
+  await page.screenshot({ path: testInfo.outputPath('landscape-safe-area.png') });
+  await page.evaluate(() => { ['--safe-top', '--safe-left', '--safe-right', '--safe-bottom'].forEach(name => document.documentElement.style.removeProperty(name)); });
+  for (const [width, height] of [[280, 653], [320, 568], [390, 844], [844, 390]]) {
+    await page.setViewportSize({ width, height });
+    await manage(page);
+    await page.getByRole('button', { name: '编辑', exact: true }).first().click();
+    expect(await page.locator('#panel').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBeTruthy();
+    const clipped = await page.locator('#editor').evaluate(form => [...form.querySelectorAll('input:not([type=checkbox]),select,textarea')].filter(el => {
+      const bounds = el.getBoundingClientRect();
+      return bounds.left < 0 || bounds.right > innerWidth;
+    }).map(el => el.name));
+    expect(clipped).toEqual([]);
+    await page.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByRole('dialog')).not.toBeVisible();
+  }
 });
 
 test('六项字段可编辑并在刷新后保留', async ({ page }) => {
