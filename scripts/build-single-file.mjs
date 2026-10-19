@@ -66,4 +66,5 @@ if (/[^\x00-\x7f]/.test(html)) throw new Error('Standalone HTML must be encoding
 await writeFile('请假记录.html', html);
 await writeFile('leave.html', html);
 await writeFile('leave-offline.zip', singleFileZip('leave.html', html));
-console.log('Generated leave-offline.zip, leave.html and 请假记录.html — no server required.');
+await writeFile('freecampus-site.zip', singleFileZip('index.html', html));
+console.log('Generated standalone HTML, leave-offline.zip and freecampus-site.zip.');

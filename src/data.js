@@ -1,14 +1,47 @@
 export const STORAGE_KEY = 'aiyunxiao-leave-records-v1';
 export const statuses = { pending: '待审核', approved: '已批准', rejected: '教师不批准', cancelled: '已撤销' };
 
-export const initialRecords = [
-  { id: 'leave-1', name: '学生', status: 'pending', type: 'sick', startDate: '2026-10-12', endDate: '2026-10-12', startPeriod: '1', endPeriod: '14', reason: '身体不适' },
-  { id: 'leave-2', name: '学生', status: 'pending', type: 'personal', startDate: '2026-09-30', endDate: '2026-09-30', startPeriod: '1', endPeriod: '1', reason: '起晚了' },
-  { id: 'leave-3', name: '学生', status: 'approved', type: 'personal', startDate: '2026-09-04', endDate: '2026-09-04', startPeriod: '5', endPeriod: '14', reason: '境外ACT考试' },
-  { id: 'leave-4', name: '学生', status: 'pending', type: 'personal', startDate: '2026-09-09', endDate: '2026-09-09', startPeriod: '3', endPeriod: '4', reason: '回家补觉 昨夜整理文书 没有休息 望老师批准' },
-  { id: 'leave-5', name: '学生', status: 'pending', type: 'personal', startDate: '2026-09-01', endDate: '2027-01-29', startPeriod: '', endPeriod: '', weekday: '3', periods: '5、6、7、8、9', reason: '居家自习' },
-  { id: 'leave-6', name: '学生', status: 'rejected', type: 'personal', startDate: '2026-09-02', endDate: '2027-01-31', startPeriod: '', endPeriod: '', weekday: '5', periods: '10、11、12、13、14', reason: '居家自习' },
-];
+export function localDate(now = new Date()) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+export function createInitialRecords() {
+  const today = localDate();
+  return [
+    { id: 'leave-1', name: '学生', status: 'approved', type: 'sick', startDate: today, endDate: today, useToday: true, startPeriod: '1', endPeriod: '14', reason: '身体不适' },
+    { id: 'leave-2', name: '学生', status: 'pending', type: 'personal', startDate: '2026-09-30', endDate: '2026-09-30', startPeriod: '1', endPeriod: '1', reason: '起晚了' },
+    { id: 'leave-3', name: '学生', status: 'approved', type: 'personal', startDate: '2026-09-04', endDate: '2026-09-04', startPeriod: '5', endPeriod: '14', reason: '境外ACT考试' },
+    { id: 'leave-4', name: '学生', status: 'pending', type: 'personal', startDate: '2026-09-09', endDate: '2026-09-09', startPeriod: '3', endPeriod: '4', reason: '回家补觉 昨夜整理文书 没有休息 望老师批准' },
+    { id: 'leave-5', name: '学生', status: 'pending', type: 'personal', startDate: '2026-09-01', endDate: '2027-01-29', startPeriod: '', endPeriod: '', weekday: '3', periods: '5、6、7、8、9', reason: '居家自习' },
+    { id: 'leave-6', name: '学生', status: 'rejected', type: 'personal', startDate: '2026-09-02', endDate: '2027-01-31', startPeriod: '', endPeriod: '', weekday: '5', periods: '10、11、12、13、14', reason: '居家自习' },
+  ];
+}
+
+export const initialRecords = createInitialRecords();
+
+// Version 2 stores the shared name and records atomically. Legacy arrays remain
+// readable, so updating the page does not reset existing browser data.
+export function parseSavedState(value, fallbackName = '学生') {
+  const legacy = Array.isArray(value);
+  if (!legacy && (!value || value.version !== 2)) throw new Error('记录格式不正确');
+  const records = legacy ? value : value.records;
+  const studentName = legacy ? (records[0]?.name || fallbackName) : value.studentName;
+  if (typeof studentName !== 'string' || !studentName.trim() || studentName.length > 30) throw new Error('姓名格式不正确');
+  if (!Array.isArray(records) || records.length > 500 || !records.every(isValidRecord) || new Set(records.map(r => r.id)).size !== records.length) throw new Error('记录格式不正确');
+  const today = localDate();
+  return { version: 2, studentName: studentName.trim(), records: records.map(record => {
+    // Upgrade only the untouched old starter card, preserving manually edited
+    // dates, reasons and approval states in existing browser records.
+    const oldStarter = legacy && record.id === 'leave-1' && record.status === 'pending' && record.type === 'sick'
+      && record.startDate === '2026-10-12' && record.endDate === '2026-10-12'
+      && record.startPeriod === '1' && record.endPeriod === '14' && record.reason === '身体不适'
+      && !record.startTime && !record.endTime && !record.weekday;
+    const next = { ...record, name: studentName.trim() };
+    if (oldStarter) { next.status = 'approved'; next.useToday = true; }
+    if (next.useToday === true && !next.weekday) { next.startDate = today; next.endDate = today; }
+    return next;
+  }) };
+}
 
 export function isValidRecord(record) {
   if (!record || typeof record !== 'object') return false;

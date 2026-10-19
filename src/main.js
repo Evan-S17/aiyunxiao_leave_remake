@@ -1,16 +1,17 @@
 import './style.css';
-import { STORAGE_KEY, initialRecords, statuses, isValidRecord, parsePeriods, periodCount } from './data.js';
+import { STORAGE_KEY, createInitialRecords, localDate, parseSavedState, statuses, isValidRecord, parsePeriods, periodCount } from './data.js';
 
 const $ = selector => document.querySelector(selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-let records = structuredClone(initialRecords);
+let records = createInitialRecords();
+let studentName = '学生';
 let storageWarning = '';
 try {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved !== null) {
-    const parsed = JSON.parse(saved);
-    if (!Array.isArray(parsed) || !parsed.every(isValidRecord) || new Set(parsed.map(r => r.id)).size !== parsed.length) throw new Error('Invalid records');
-    records = parsed;
+    const parsed = parseSavedState(JSON.parse(saved));
+    records = parsed.records;
+    studentName = parsed.studentName;
   }
 } catch { storageWarning = '本地数据无法读取，已显示初始记录。'; }
 
@@ -26,10 +27,14 @@ function notify(message) {
   toastTimer = setTimeout(() => $('#toast').classList.remove('visible'), 2800);
 }
 
-function persist(nextRecords) {
+function persist(nextRecords, nextName = studentName) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRecords));
-    records = nextRecords;
+    const state = parseSavedState({ version: 2, studentName: nextName, records: nextRecords });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const nameChanged = studentName !== state.studentName;
+    records = state.records;
+    studentName = state.studentName;
+    if (nameChanged) { search = ''; $('#search-name').value = ''; }
     render();
     return true;
   } catch {
@@ -76,11 +81,12 @@ panel.addEventListener('close', () => document.body.classList.remove('modal-open
 panel.addEventListener('click', event => { if (event.target === panel) panel.close(); });
 
 function openMenu() {
-  openPanel('更多操作', `<div class="menu-actions"><button id="manage-records">管理请假记录</button><button id="menu-filter">筛选记录</button><button id="export-records">导出本地数据</button><button id="import-records">导入本地数据</button><input type="file" id="import-file" accept="application/json,.json" hidden/></div><p class="panel-note">数据仅保存在当前浏览器。可导出备份，在其他设备导入。</p>`);
+  openPanel('更多操作', `<div class="menu-actions"><button id="rename-student">统一更改姓名</button><button id="manage-records">管理请假记录</button><button id="menu-filter">筛选记录</button><button id="export-records">导出本地数据</button><button id="import-records">导入本地数据</button><input type="file" id="import-file" accept="application/json,.json" hidden/></div><p class="panel-note">姓名和记录仅保存在当前浏览器，不会上传。浏览器清理数据后可能丢失，请导出备份。</p>`);
+  $('#rename-student').onclick = openRename;
   $('#manage-records').onclick = openManager;
   $('#menu-filter').onclick = openFilter;
   $('#export-records').onclick = () => {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' }));
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ version: 2, studentName, records }, null, 2)], { type: 'application/json' }));
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = '请假记录.json';
@@ -94,13 +100,23 @@ function openMenu() {
     if (!file) return;
     try {
       if (file.size > 1024 * 1024) throw new Error('文件超过 1 MB');
-      const imported = JSON.parse(await file.text());
-      if (!Array.isArray(imported) || imported.length > 500 || !imported.every(isValidRecord) || new Set(imported.map(r => r.id)).size !== imported.length) throw new Error('记录格式不正确');
-      openPanel('导入记录', `<p class="confirm-message">将用文件中的 ${imported.length} 条记录替换当前记录，是否继续？</p><div class="form-actions"><button class="secondary-button" id="cancel-import">取消</button><button class="green-button" id="confirm-import">确认导入</button></div>`);
+      const imported = parseSavedState(JSON.parse(await file.text()), studentName);
+      openPanel('导入记录', `<p class="confirm-message">将用文件中的 ${imported.records.length} 条记录替换当前记录，是否继续？</p><div class="form-actions"><button class="secondary-button" id="cancel-import">取消</button><button class="green-button" id="confirm-import">确认导入</button></div>`);
       $('#cancel-import').onclick = openMenu;
-      $('#confirm-import').onclick = () => { if (persist(imported)) { panel.close(); notify('导入成功'); } };
+      $('#confirm-import').onclick = () => { if (persist(imported.records, imported.studentName)) { panel.close(); notify('导入成功'); } };
     } catch (error) { notify(`无法导入：${error instanceof SyntaxError ? 'JSON 文件格式不正确' : error.message}`); }
     finally { event.target.value = ''; }
+  };
+}
+
+function openRename() {
+  openPanel('统一更改姓名', `<form id="rename-form" class="editor-form"><label>所有记录的学生姓名<input name="name" value="${escape(studentName)}" maxlength="30" required autocomplete="off"/></label><p class="field-hint">保存后，现有记录和以后新增的记录都会使用这个姓名。修改仅保存在此浏览器，不会发送到服务器或 GitHub。</p><p class="form-error" id="rename-error" role="alert"></p><div class="form-actions"><button type="button" class="secondary-button" id="cancel-rename">取消</button><button class="green-button" type="submit">保存</button></div></form>`);
+  $('#cancel-rename').onclick = () => panel.close();
+  $('#rename-form').onsubmit = event => {
+    event.preventDefault();
+    const name = event.target.elements.name.value.trim();
+    if (!name) { $('#rename-error').textContent = '请填写姓名。'; return; }
+    if (persist(records, name)) { panel.close(); notify('全部记录的姓名已更新，仅保存在此浏览器'); }
   };
 }
 
@@ -114,11 +130,12 @@ function options(values, selected) { return values.map(([value, text]) => `<opti
 
 function openEditor(id) {
   const existing = records.find(record => record.id === id);
-  const today = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  const record = existing || { name: '学生', status: 'pending', type: 'personal', startDate: today, endDate: today, startPeriod: '1', endPeriod: '1', reason: '' };
+  const today = localDate();
+  const record = existing || { name: studentName, status: 'pending', type: 'personal', startDate: today, endDate: today, startPeriod: '1', endPeriod: '1', reason: '' };
   const periods = [['', '不显示节次'], ...Array.from({ length: 20 }, (_, i) => [i + 1, `第${i + 1}节`])];
   openPanel(existing ? '编辑请假记录' : '新增请假记录', `<form id="editor" class="editor-form">
     <label>学生姓名<input name="name" aria-label="学生姓名（编辑）" value="${escape(record.name)}" maxlength="30" required autocomplete="off"/></label>
+    <p class="field-hint">修改姓名会同步更新所有记录，仅保存在当前浏览器。</p>
     <div class="form-grid"><label>审核状态<select name="status">${options(Object.entries(statuses), record.status)}</select></label><label>请假类型<select name="type">${options([['personal', '事假'], ['sick', '病假']], record.type)}</select></label></div>
     <fieldset><legend>开始时间</legend><div class="form-grid"><label>开始日期<input type="date" name="startDate" value="${escape(record.startDate)}" min="1900-01-01" max="9999-12-31" required/></label><label>开始节次<select name="startPeriod">${options(periods, record.startPeriod)}</select></label></div><label>具体时间（选填）<input type="time" name="startTime" value="${escape(record.startTime)}"/></label></fieldset>
     <fieldset><legend>结束时间</legend><div class="form-grid"><label>结束日期<input type="date" name="endDate" value="${escape(record.endDate)}" min="1900-01-01" max="9999-12-31" required/></label><label>结束节次<select name="endPeriod">${options(periods, record.endPeriod)}</select></label></div><label>具体时间（选填）<input type="time" name="endTime" value="${escape(record.endTime)}"/></label></fieldset>
@@ -149,9 +166,10 @@ function openEditor(id) {
       next.startPeriod = '';
       next.endPeriod = '';
     }
+    if (existing?.useToday && !data.recurring && next.startDate === existing.startDate && next.endDate === existing.endDate) next.useToday = true;
     if (!next.name || !next.reason) { $('#form-error').textContent = '请填写姓名和请假事由。'; return; }
     if (!isValidRecord(next)) { $('#form-error').textContent = '请检查日期、时间和节次，结束时间不能早于开始时间。'; return; }
-    if (persist(existing ? records.map(item => item.id === id ? next : item) : [next, ...records])) { panel.close(); notify('已保存'); }
+    if (persist(existing ? records.map(item => item.id === id ? next : item) : [next, ...records], next.name)) { panel.close(); notify('已保存'); }
   };
 }
 

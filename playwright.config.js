@@ -10,6 +10,7 @@ export default defineConfig({
     ...devices['iPhone 13'],
     defaultBrowserType: 'chromium',
     baseURL: 'http://127.0.0.1:5173',
+    timezoneId: 'Asia/Shanghai',
     launchOptions: {
       executablePath: process.env.CHROMIUM_PATH || (existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined),
     },
