@@ -7,6 +7,16 @@ A project aiming to provide "freedom" in campus.
 
 界面随手机屏幕宽度自适应，支持横竖屏、文字放大和设备安全区；不模拟系统时间、信号、Wi-Fi、电量或底部系统栏。
 
+### 手机在线访问（推荐 iOS）
+
+公开仓库可使用免费的 GitHub Pages。部署成功后，Safari 直接打开：
+
+https://evan-s17.github.io/aiyunxiao_leave_remake/
+
+首次启用：在仓库 **Settings → Pages → Source** 选择 **GitHub Actions**，然后在 **Actions → Deploy GitHub Pages → Run workflow** 启动部署。等部署成功后，上述网址才可访问；以后推送到 `main` 会自动更新。
+
+线上页面也没有后端，编辑数据仅保存在当前浏览器，不会上传到 GitHub，也不会跨设备自动同步。可在 Safari 分享菜单选择“添加到主屏幕”，方便下次打开。
+
 ### 直接使用（无需安装）
 
 下载 **[leave-offline.zip](./leave-offline.zip)**，解压后用浏览器打开里面的 **leave.html**。不需要 Node.js、命令行或服务器，断网也能使用。所有样式和脚本都已包含在这一个文件里。
@@ -68,4 +78,4 @@ npm run dev
 
 手机上的 `localhost` 指手机自身，不能用来访问电脑上的服务。云端工作区的 `localhost` 也不是自己电脑的地址。
 
-本仓库不再包含自动上线工作流。
+本仓库包含 GitHub Pages 自动部署工作流，也保留单文件下载和本地运行方式。
