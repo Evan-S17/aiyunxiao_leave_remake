@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 
 async function manage(page) {
   await page.getByRole('button', { name: '更多操作' }).click();
@@ -145,4 +147,32 @@ test('空记录列表保持为空，存储写入失败时明确提示', async ({
   await page.getByRole('button', { name: '确认撤销' }).click();
   await expect(page.getByRole('status')).toContainText('保存失败');
   await expect(page.locator('.leave-card').first()).toContainText('待审核');
+});
+
+test('单文件 HTML 离线运行，无外部资源，编辑刷新持久化', async ({ page }) => {
+  const errors = [];
+  const externalRequests = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (request.resourceType() !== 'document') externalRequests.push(request.url()); });
+  // The managed cloud Chromium blocks file:// navigation. Supply the exact
+  // local file as an intercepted document; no HTTP server or network is used.
+  const html = await readFile(resolve('请假记录.html'), 'utf8');
+  await page.route('https://standalone.test/**', route => route.fulfill({ contentType: 'text/html', body: html }));
+  await page.context().setOffline(true);
+  await page.goto('https://standalone.test/');
+  await expect(page.locator('.leave-card')).toHaveCount(6);
+  await manage(page);
+  await page.getByRole('button', { name: '编辑', exact: true }).first().click();
+  await page.getByLabel('学生姓名（编辑）').fill('离线编辑');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await page.reload();
+  await expect(page.locator('.leave-card').first()).toContainText('离线编辑');
+  await manage(page);
+  await page.getByRole('button', { name: '新增请假记录' }).click();
+  await page.getByLabel('学生姓名（编辑）').fill('离线新增');
+  await page.getByLabel('请假事由').fill('单文件测试');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.locator('.leave-card')).toHaveCount(7);
+  expect(externalRequests).toEqual([]);
+  expect(errors).toEqual([]);
 });
