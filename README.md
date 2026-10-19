@@ -7,7 +7,9 @@ A project aiming to provide "freedom" in campus.
 
 ### 直接使用（无需安装）
 
-下载仓库中的 **[请假记录.html](./请假记录.html)**，用浏览器打开即可。不需要 Node.js、命令行或服务器，断网也能使用。所有样式和脚本都已包含在这一个文件里。
+下载 **[leave-offline.zip](./leave-offline.zip)**，解压后用浏览器打开里面的 **leave.html**。不需要 Node.js、命令行或服务器，断网也能使用。所有样式和脚本都已包含在这一个文件里。
+
+请不要把 GitHub 的源码文本预览当作网页。ZIP 下载可保留正确的 `.html` 扩展名；文件内部已采用 HTML 字符实体和 JavaScript Unicode 转义，避免本地查看器猜错中文编码。
 
 编辑入口仍是右上角 **… → 管理请假记录 → 编辑**。使用同一个文件和浏览器，可保留已保存的数据；也可导出备份。
 
@@ -25,7 +27,7 @@ npm run dev
 页面路径：`/leave/vacationList`，根路径也可访问。手机与开发机处于同一网络时，可使用开发机的 IP 和开发服务器端口访问。
 
 ```sh
-npm run build     # 生成 dist/ 和可直接打开的 请假记录.html
+npm run build     # 生成 dist/、单文件 HTML 及 leave-offline.zip 下载包
 npm run preview   # 本地查看构建产物
 ```
 

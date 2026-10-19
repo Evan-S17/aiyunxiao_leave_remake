@@ -156,11 +156,15 @@ test('单文件 HTML 离线运行，无外部资源，编辑刷新持久化', as
   page.on('request', request => { if (request.resourceType() !== 'document') externalRequests.push(request.url()); });
   // The managed cloud Chromium blocks file:// navigation. Supply the exact
   // local file as an intercepted document; no HTTP server or network is used.
-  const html = await readFile(resolve('请假记录.html'), 'utf8');
-  await page.route('https://standalone.test/**', route => route.fulfill({ contentType: 'text/html', body: html }));
+  const html = await readFile(resolve('leave.html'), 'utf8');
+  expect(/[^\x00-\x7f]/.test(html)).toBeFalsy();
+  // Deliberately serve the wrong charset to catch Chinese mojibake regressions.
+  await page.route('https://standalone.test/**', route => route.fulfill({ contentType: 'text/html; charset=windows-1252', body: html }));
   await page.context().setOffline(true);
   await page.goto('https://standalone.test/');
   await expect(page.locator('.leave-card')).toHaveCount(6);
+  await expect(page.locator('.navigation h1')).toHaveText('请假记录');
+  await expect(page.locator('.leave-card').first()).toContainText('胡雁灵');
   await manage(page);
   await page.getByRole('button', { name: '编辑', exact: true }).first().click();
   await page.getByLabel('学生姓名（编辑）').fill('离线编辑');
